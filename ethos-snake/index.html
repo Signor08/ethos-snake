@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ethos Snake</title>
+    <style>
+      body {
+        background-color: #007bff;
+        font-family: "Press Start 2P", cursive;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        color: white;
+        min-height: 100vh;
+        position: relative;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        margin-top: 1rem;
+      }
+
+      #gameContainer {
+        background-color: #add8e6;
+        border: 4px solid #ffffff;
+        margin: 20px;
+        position: relative;
+      }
+
+      canvas {
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      #scoreBoard {
+        position: absolute;
+        bottom: -40px;
+        left: 0;
+        font-size: 1rem;
+        color: white;
+      }
+
+      #popup,
+      #gameOverPopup {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-size: 1rem;
+        display: none;
+        text-align: center;
+      }
+
+      #footer {
+        margin-top: auto;
+        margin-bottom: 1rem;
+        font-size: 0.8rem;
+        color: #eee;
+      }
+    </style>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <h1>Ethos Snake</h1>
+    <div id="gameContainer">
+      <canvas id="gameCanvas" width="400" height="400"></canvas>
+      <div id="popup">when code?</div>
+      <div id="gameOverPopup"></div>
+      <div id="scoreBoard">
+        Score: <span id="score">0</span> | High Score:
+        <span id="highScore">0</span>
+      </div>
+    </div>
+
+    <div id="footer">Powered by evans7049</div>
+
+    <audio id="eatSound" src="eat.mp3" preload="auto"></audio>
+    <audio id="gameOverSound" src="gameover.mp3" preload="auto"></audio>
+
+    <script>
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const popup = document.getElementById("popup");
+      const gameOverPopup = document.getElementById("gameOverPopup");
+      const scoreEl = document.getElementById("score");
+      const highScoreEl = document.getElementById("highScore");
+      const eatSound = document.getElementById("eatSound");
+      const gameOverSound = document.getElementById("gameOverSound");
+
+      const gridSize = 20;
+      const tileCount = canvas.width / gridSize;
+      const logoSize = 36;
+      const logo = new Image();
+      logo.src = "logo.png";
+
+      let logoReady = false;
+      logo.onload = () => {
+        logoReady = true;
+        startGame();
+      };
+      logo.onerror = () => {
+        console.warn("Logo failed to load");
+        startGame();
+      };
+
+      let snake = [{ x: 10, y: 10 }];
+      let direction = { x: 0, y: 0 };
+      let food = { x: 5, y: 5 };
+      let score = 0;
+      let highScore = localStorage.getItem("ethos_highscore") || 0;
+      let gameLoop;
+      let paused = false;
+      let eatCount = 0;
+
+      highScoreEl.textContent = highScore;
+
+      function startGame() {
+        gameLoop = setInterval(loop, 150);
+      }
+
+      function draw() {
+        ctx.fillStyle = "#ADD8E6";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < snake.length; i++) {
+          if (i === 0 && logoReady) {
+            ctx.drawImage(
+              logo,
+              snake[i].x * gridSize - (logoSize - gridSize) / 2,
+              snake[i].y * gridSize - (logoSize - gridSize) / 2,
+              logoSize,
+              logoSize
+            );
+          } else {
+            ctx.fillStyle = "green";
+            ctx.fillRect(
+              snake[i].x * gridSize,
+              snake[i].y * gridSize,
+              gridSize,
+              gridSize
+            );
+          }
+        }
+
+        ctx.fillStyle = "red";
+        ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
+      }
+
+      function update() {
+        if (paused) return;
+        const head = {
+          x: snake[0].x + direction.x,
+          y: snake[0].y + direction.y,
+        };
+
+        if (head.x === food.x && head.y === food.y) {
+          score += 10;
+          eatCount++;
+          eatSound.play();
+          if (eatCount % 5 === 0) showPopup();
+          snake.unshift(head);
+          placeFood();
+        } else {
+          snake.pop();
+          snake.unshift(head);
+        }
+
+        if (
+          head.x < 0 ||
+          head.x >= tileCount ||
+          head.y < 0 ||
+          head.y >= tileCount ||
+          snake.slice(1).some((p) => p.x === head.x && p.y === head.y)
+        ) {
+          clearInterval(gameLoop);
+          gameOver();
+        }
+      }
+
+      function generateCode() {
+        const hex = "0123456789ABCDEF";
+        let code = "";
+        for (let i = 0; i < 8; i++) {
+          code += hex[Math.floor(Math.random() * hex.length)];
+        }
+        return code;
+      }
+
+      function gameOver() {
+        gameOverSound.play();
+        setTimeout(() => {
+          let message = "";
+          if (score >= 100) {
+            const code = generateCode();
+            message = `Congrats! You have obtained the code:<br><strong>${code}</strong>`;
+          } else {
+            message = "You must try harder to get the code!";
+          }
+
+          if (score > highScore) {
+            localStorage.setItem("ethos_highscore", score);
+          }
+
+          gameOverPopup.innerHTML = message;
+          gameOverPopup.style.display = "block";
+        }, 500);
+      }
+
+      function placeFood() {
+        food = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount),
+        };
+      }
+
+      function showPopup() {
+        popup.style.display = "block";
+        setTimeout(() => (popup.style.display = "none"), 600);
+      }
+
+      function loop() {
+        update();
+        draw();
+        scoreEl.textContent = score;
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowUp" || e.key === "w") direction = { x: 0, y: -1 };
+        if (e.key === "ArrowDown" || e.key === "s") direction = { x: 0, y: 1 };
+        if (e.key === "ArrowLeft" || e.key === "a") direction = { x: -1, y: 0 };
+        if (e.key === "ArrowRight" || e.key === "d") direction = { x: 1, y: 0 };
+        if (e.key === " " || e.code === "Space") paused = !paused;
+      });
+    </script>
+  </body>
+</html>
